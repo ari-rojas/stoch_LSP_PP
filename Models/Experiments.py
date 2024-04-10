@@ -133,20 +133,20 @@ def export_global_parameters(tup):
     dump(tup, file); file.close()
 
 
-def export_instance_parameters(tup):
+def export_instance_parameters(tup, ix):
 
     new_dir = f"./Experiments/Parameters/"
     file = open(new_dir + f"Age_service_level_ix{ix}", "wb")
     dump(tup, file); file.close()
 
-def export_results(tup):
+def export_results(tup, ix):
 
     new_dir = f"./Experiments/Results/"
     if not os.path.exists(new_dir): os.makedirs(new_dir)
     file = open(new_dir + f"Age_service_level_ix{ix}", "wb")
     dump(tup, file); file.close()
 
-def export_performance_metrics(tup):
+def export_performance_metrics(tup, ix):
 
     new_dir = f"./Experiments/Performance metrics/"
     if not os.path.exists(new_dir): os.makedirs(new_dir)
@@ -158,7 +158,7 @@ def export_performance_metrics(tup):
 '''
 
 # TODO
-T = 20; S = 150; n = 4
+T = 20; S = 100; n = 4
 a0 = [0.4, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]; an1 = [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]
 
 # Parameters setting
@@ -180,7 +180,7 @@ for ix in range(10):
     d = {s:{t:10+20*np.random.random() for t in T} for s in S}
     C = np.max([np.floor(2*sum(list(d[s].values()))/len(T)) for s in S])
 
-    export_instance_parameters((d,C))
+    export_instance_parameters((d,C), ix)
 
     '''
         Run experiments
@@ -194,7 +194,7 @@ for ix in range(10):
         print(f"\tDone {(a,b)}\n")
 
     # Export results
-    export_results((y, x, z, l, w, I))
+    export_results((y, x, z, l, w, I), ix)
 
     '''
         Performance metrics
@@ -205,4 +205,4 @@ for ix in range(10):
     waste = get_waste_results(T, S, a0, an1, n, x, I)
 
     # Export results
-    export_performance_metrics((holding, production, setup, total, period_sl, total_sl, waste))
+    export_performance_metrics((holding, production, setup, total, period_sl, total_sl, waste), ix)
