@@ -3,9 +3,10 @@ import numpy as np
 import os
 from pickle import dump, load
 
-def stat_stat_standard_model(T, G, S, phi, n, h, c, f, C, I0, d, alpha, beta = 0, epsilon = 1, MIPFocus = 0,  FIFO = False, output = False, verbose = False):
+def stat_stat_standard_model(T, G, S, phi, n, h, c, f, C, I0, d, alpha, beta = 0, epsilon = 1, MIPFocus = 0,  FIFO = 0, output = False, verbose = False, time = False, threads=0):
 
     m = gb.Model("Standard Model")
+    Tt = {t:[mm for mm in range(np.max((1,t)),np.min((T[-1],t+n-1)) + 1)] for t in T+[-tt for tt in range(n)]}
 
     ######################################
     # DECISION VARIABLES
@@ -30,7 +31,7 @@ def stat_stat_standard_model(T, G, S, phi, n, h, c, f, C, I0, d, alpha, beta = 0
     for t in T:
 
         # Production capacity
-        m.addConstr(x[t] <= C*y[t])
+        m.addConstr(x[t] <= np.min((C,sum(d[s][m] for m in Tt[t])))*y[t])
 
         for s in S:
             # Inventory of fresh produce
@@ -54,27 +55,29 @@ def stat_stat_standard_model(T, G, S, phi, n, h, c, f, C, I0, d, alpha, beta = 0
     m.addConstr(gb.quicksum(phi[s]*gb.quicksum(I[s][t,n-1] for t in T) for s in S) <= epsilon*gb.quicksum(x[t] for t in T))
 
     # FIFO constraints
-    if FIFO:
+    if FIFO == 1:
         gamma = {s:{(t,g):m.addVar(name=f"gamma_{s,t,g}",vtype=gb.GRB.BINARY) for t in T for g in G} for s in S}
 
         for s in S:
             for t in T:
                 for g in G:
-                    m.addConstr(I[s][t,g] <= C*(1-gamma[s][t,g]))
+                    m.addConstr(I[s][t,g] <= np.min((C,sum(d[s][mm] for mm in Tt[t-g])))*(1-gamma[s][t,g]))
 
                     if g < G[-1]:
                         m.addConstr(gamma[s][t,g] <= gamma[s][t,g+1])
-                        m.addConstr(z[s][t,g] <= C*gamma[s][t,g+1])
-    
+                        m.addConstr(z[s][t,g] <= d[s][t]*gamma[s][t,g+1])
+
     ######################################
     # OBJECTIVE FUNCTION
     ######################################
     
-    m.setObjective(gb.quicksum(f*y[t] + c*x[t] + h*gb.quicksum(phi[s]*gb.quicksum(I[s][t,g] for g in G) for s in S) for t in T))
+    total_cost = gb.quicksum(f*y[t] + c*x[t] + h*gb.quicksum(phi[s]*gb.quicksum(I[s][t,g] for g in G) for s in S) for t in T)
+    m.setObjective(total_cost)
 
     m.update()
     m.setParam("OutputFlag",output)
     m.setParam("MIPFocus",MIPFocus)
+    m.setParam("Threads", threads)
     m.setParam("MIPGap",1e-5)
     m.optimize()
 
@@ -90,37 +93,35 @@ def stat_stat_standard_model(T, G, S, phi, n, h, c, f, C, I0, d, alpha, beta = 0
     I = {s:{(t,g):round(I[s][t,g].x,10) for t in T for g in G} for s in S}
 
     if verbose:
-        print(f"\tObjective: {round(m.getObjective().getValue(),2)}")
+        print(f"\tObjective: {round(total_cost.getValue(),2)}")
         print(f"\t\tSetup: {f*sum(y[t] for t in T)}")
         print(f"\t\tExp. Holding: {h*sum(phi[s]*sum(I[s][t,g] for t in T for g in G) for s in S)}")
         print(f"\tRuntime: {round(m.runTime,4)}\n")
 
     return y, x, z, l, w, I
 
-def get_costs_results(T, G, S, f, c, h, a0, an1, y, x, I):
+
+def get_costs_results(T, G, S, f, c, h, y, x, I, reps):
 
     setup, production, holding, total = dict(), dict(), dict(), dict()
-    for a in a0:
-        for b in an1:
-
-            if a <= b:
-                setup[a,b] = f*sum(y[a,b][t] for t in T)
-                production[a,b] = c*sum(x[a,b][t] for t in T)
-                holding[a,b] = [h*sum(I[a,b][s][t,g] for t in T for g in G) for s in S]
-                total[a,b] = [setup[a,b] + production[a,b] + holding[a,b][s-1] for s in S]
+    for ix in range(reps):
+        setup[ix] = f*sum(y[ix][t] for t in T)
+        production[ix] = c*sum(x[ix][t] for t in T)
+        holding[ix] = [h*sum(I[ix][s][t,g] for t in T for g in G) for s in S]
+        total[ix] = [setup[ix] + production[ix] + holding[ix][s-1] for s in S]
 
     return setup, holding, production, total
 
-def get_service_level_results(T, G, S, a0, an1, d, z):
+def get_service_level_results(T, G, S, d, z, reps):
 
-    period_sl = {(a,b):{(t,g):[sum(z[a,b][s][t,k] for k in range(g+1))/d[s][t] for s in S] for t in T for g in G} for a in a0 for b in an1 if a <= b}
-    total_sl = {(a,b):{g:[sum(z[a,b][s][t,k] for t in T for k in range(g+1))/sum(d[s][t] for t in T) for s in S] for g in G} for a in a0 for b in an1 if a <= b}
+    period_sl = {ix:{(t,g):[sum(z[ix][s][t,k] for k in range(g+1))/d[ix][s][t] for s in S] for t in T for g in G} for ix in reps}
+    total_sl = {ix:{g:[sum(z[ix][s][t,k] for t in T for k in range(g+1))/sum(d[ix][s][t] for t in T) for s in S] for g in G} for ix in reps}
 
     return period_sl, total_sl
 
-def get_waste_results(T, S, a0, an1, n, x, I):
+def get_waste_results(T, S, n, x, I, reps):
 
-    waste = {(a,b):[sum(I[a,b][s][t,n-1] for t in T)/sum(x[a,b][t] for t in T) for s in S] for a in a0 for b in an1 if a <= b}
+    waste = {ix:[sum(I[ix][s][t,n-1] for t in T)/sum(x[ix][t] for t in T) for s in S] for ix in reps}
 
     return waste
 
@@ -133,24 +134,24 @@ def export_global_parameters(tup):
     dump(tup, file); file.close()
 
 
-def export_instance_parameters(tup, ix):
+def export_instance_parameters(tup):
 
     new_dir = f"./Experiments/Parameters/"
-    file = open(new_dir + f"Age_service_level_ix{ix}", "wb")
+    file = open(new_dir + f"Demand_T{len(T)}_S{len(S)}_n{n}", "wb")
     dump(tup, file); file.close()
 
-def export_results(tup, ix):
+def export_results(tup, ab):
 
     new_dir = f"./Experiments/Results/"
     if not os.path.exists(new_dir): os.makedirs(new_dir)
-    file = open(new_dir + f"Age_service_level_ix{ix}", "wb")
+    file = open(new_dir + f"Age_service_level_ix{ab}", "wb")
     dump(tup, file); file.close()
 
-def export_performance_metrics(tup, ix):
+def export_performance_metrics(tup, ab):
 
     new_dir = f"./Experiments/Performance metrics/"
     if not os.path.exists(new_dir): os.makedirs(new_dir)
-    file = open(new_dir + f"Age_service_level_ix{ix}", "wb")
+    file = open(new_dir + f"Age_service_level_ix{ab}", "wb")
     dump(tup, file); file.close()
 
 '''
@@ -158,7 +159,7 @@ def export_performance_metrics(tup, ix):
 '''
 
 # TODO
-T = 20; S = 100; n = 4
+T = 20; S = 150; n = 4; reps = 5
 a0 = [0.4, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]; an1 = [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]
 
 # Parameters setting
@@ -167,42 +168,39 @@ T = list(range(1,T+1)); G = list(range(n)); S = list(range(1,S+1))
 I0 = {g:0 for g in G[:-1]}; phi = {s:1/len(S) for s in S}
 alpha = {(a,b):dict(zip(G,[a if g < G[-1] else b for g in G])) for a in a0 for b in an1 if a <= b}
 
-export_global_parameters((T, S, G, n, h, c, f, a0, an1, alpha))
+d = {ix:{s:{t:5+20*np.random.random() for t in T} for s in S} for ix in range(reps)}
+C = np.max([np.max([np.floor(2*sum(list(d[ix][s].values()))/len(T)) for s in S]) for ix in range(reps)])
 
-for ix in range(10):
+export_global_parameters((T, S, G, n, h, c, f, C))
+export_instance_parameters(d)
 
-    print(f"RUNNING FOR INSTANCE {ix}")
 
-    '''
-        Instance-specific parameters
-    '''
-
-    d = {s:{t:10+20*np.random.random() for t in T} for s in S}
-    C = np.max([np.floor(2*sum(list(d[s].values()))/len(T)) for s in S])
-
-    export_instance_parameters((d,C), ix)
-
-    '''
-        Run experiments
-    '''
+for (a,b) in alpha:
 
     # Results dictionaries
     y, x, z, l, w, I = dict(), dict(), dict(), dict(), dict(), dict()
 
-    for (a,b) in alpha:
-        y[a,b], x[a,b], z[a,b], l[a,b], w[a,b], I[a,b] = stat_stat_standard_model(T, G, S, phi, n, h, c, f, C, I0, d, alpha[a,b], beta=0, epsilon=1, MIPFocus = 2, FIFO=True, verbose=True)
-        print(f"\tDone {(a,b)}\n")
+    for ix in range(reps):
+
+        print(f"RUNNING FOR INSTANCE {ix}")
+
+        '''
+            Run experiments
+        '''
+
+        y[ix], x[ix], z[ix], l[ix], w[ix], I[ix] = stat_stat_standard_model(T, G, S, phi, n, h, c, f, C, I0, d[ix], alpha[a,b], beta=0, epsilon=1, MIPFocus = 2, FIFO=True, verbose=True)
+        print(f"\tDone {ix}\n")
 
     # Export results
-    export_results((y, x, z, l, w, I), ix)
+    export_results((y, x, z, l, w, I), (a,b))
 
     '''
         Performance metrics
     '''
 
-    holding, production, setup, total = get_costs_results(T, G, S, f, c, h, a0, an1, y, x, I)
-    period_sl, total_sl = get_service_level_results(T, G, S, a0, an1, d, z)
-    waste = get_waste_results(T, S, a0, an1, n, x, I)
+    holding, production, setup, total = get_costs_results(T, G, S, f, c, h, y, x, I, reps)
+    period_sl, total_sl = get_service_level_results(T, G, S, d, z, reps)
+    waste = get_waste_results(T, S, n, x, I, reps)
 
     # Export results
-    export_performance_metrics((holding, production, setup, total, period_sl, total_sl, waste), ix)
+    export_performance_metrics((holding, production, setup, total, period_sl, total_sl, waste), (a,b))

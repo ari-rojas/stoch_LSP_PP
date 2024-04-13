@@ -13,5 +13,5 @@ app.layout = dbc.Container([output := dcc.Markdown(children=""),
 def update_graph(texto):
     return texto
 
-if __name__ == "main":
+if __name__ == "__main__":
     app.run_server(debug=True)
