@@ -17,18 +17,31 @@ header_bg = "#2DB5AF"; header_text_color="black"
 border_color = "#269A94"
 light_bg = "#ACEAE7"
 
-def import_data(experiment):
+def import_data(experiment, tab, alpha):
 
     file = open(f"./Experiments/Parameters/Global_{experiment}", "rb")
     (T, S, G, n, h, c, f, C) = load(file); file.close()
-    alpha = [(a,b) for a in a0 for b in an1 if a <= b]
 
     setup, holding, production, total, period_sl, total_sl, waste_prod, waste_dem = dict(), dict(), dict(), dict(), dict(), dict(), dict(), dict()
     for (a,b) in alpha:
-        file = open(f"./Experiments/Performance metrics/Age_service_level_ix{a,b}", "rb")
+        file = open(f"./Experiments/Performance metrics/Age_service_level_{a,b}_stat-{tab}", "rb")
         (setup[a,b], holding[a,b], production[a,b], total[a,b], period_sl[a,b], total_sl[a,b], waste_prod[a,b], waste_dem[a,b]) = load(file); file.close()
 
     return (T, S, G, n, h, c, f, C), (setup, holding, production, total, period_sl, total_sl, waste_prod, waste_dem)
+
+def process_data(S, metrics, reps, alpha):
+
+    metrics = list(metrics)
+
+    for m in metrics:
+        for (a,b) in alpha:
+            for rep in reps:
+
+                if isinstance(m[a,b][rep], list):
+                    m[a,b][rep] = sum(m[a,b][rep])/len(S)
+    
+    return tuple(metrics)
+
 
 def filter_data(a0, vals0, an1, valsn1):
 
@@ -37,10 +50,13 @@ def filter_data(a0, vals0, an1, valsn1):
 
     return b0, bn1
 
-def get_service_level_analysis(b0, bn1, reps, S, G, f, c, setup, holding, production, total, total_sl, waste_prod, waste_dem, view_bool, hover_bool):
+def plot_service_level_analysis(b0, bn1, reps, S, G, f, c, setup, holding, production, total, total_sl, waste_prod, waste_dem, view_bool, hover_bool, tab):
 
-    fig = make_subplots(rows=2, cols=5, horizontal_spacing=0.05, vertical_spacing=0.15, subplot_titles=["Total expected cost","Setup operations","Average lot size","Production cost","Expected holding cost",
-                                                    "Achieved fresh produce fill rate","Achieved overall fill rate","Waste level (/production)","Waste level (/demand)",None])
+    if tab == "stat": s1 = "Average lot size"; s2 = "Production cost"
+    else: s1 = "Expected average lot size"; s2 = "Expected production cost"
+
+    fig = make_subplots(rows=2, cols=5, horizontal_spacing=0.05, vertical_spacing=0.15, subplot_titles=["Total expected cost","Setup operations",s1,s2,"Expected holding cost",
+                                                    "Achieved fresh produce fill rate","Achieved overall fill rate","Waste level (/prod.)","Waste level (/dem.)",None])
 
     
     if view_bool:
@@ -63,15 +79,15 @@ def get_service_level_analysis(b0, bn1, reps, S, G, f, c, setup, holding, produc
         if view_bool: xpoints = [a for a in x_axis_container if a <= b]; comb = {a:(a,b) for a in xpoints}
         else: xpoints = [a for a in x_axis_container if a >= b]; comb = {a:(b,a) for a in xpoints}
 
-        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([sum(total[comb[a]][rep])/len(S) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Tot. Exp. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=1)
+        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([total[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Tot. Exp. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=1)
         fig.add_trace(go.Scatter(x=xpoints, y=[np.average([setup[comb[a]][rep]/f for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Setups = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=False), row=1, col=2)
         fig.add_trace(go.Scatter(x=xpoints, y=[np.average([production[comb[a]][rep]*f/(setup[comb[a]][rep]*c) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Avg. Lot Size = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=3)
         fig.add_trace(go.Scatter(x=xpoints, y=[np.average([production[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Prod. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=4)
-        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([sum(holding[comb[a]][rep])/len(S) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Exp. Hold. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=5)
-        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([sum(total_sl[comb[a]][rep][0])/len(S) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Fresh produce fill rate = %{y:,.2%}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=2, col=1)
-        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([sum(total_sl[comb[a]][rep][G[-1]])/len(S) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Overall fill rate = %{y:,.2%}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=False), row=2, col=2)
-        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([sum(waste_prod[comb[a]][rep])/len(S) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Waste (/prod) = %{y:.2%}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=False), row=2, col=3)
-        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([sum(waste_dem[comb[a]][rep])/len(S) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Waste (/dem) = %{y:.2%}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=True), row=2, col=4)
+        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([holding[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Exp. Hold. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=5)
+        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([total_sl[comb[a]][rep][0] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Fresh produce fill rate = %{y:,.2%}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=2, col=1)
+        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([total_sl[comb[a]][rep][G[-1]] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Overall fill rate = %{y:,.2%}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=False), row=2, col=2)
+        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([waste_prod[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Waste (/prod) = %{y:.2%}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=False), row=2, col=3)
+        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([waste_dem[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br> Waste (/dem) = %{y:.2%}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=True), row=2, col=4)
         ix += 1
 
     for i in range(1,6):
@@ -220,16 +236,18 @@ app.layout = dbc.Container([
 
         ], justify="center", align="center", style={"width":"100%", "backgroundColor":container_bg}),
     
-    dbc.Row([ # Graph
+    dbc.Row([ # Graphs
         
-        dbc.Col([dbc.Card([ # Graph
-            sl_analysis := dcc.Graph(figure={}, mathjax=True)
-            ], style={"borderColor":border_color})], width=12, style={"margin-top":"10px","margin-bottom":"10px"})
+        graphs_tabs := dcc.Tabs( value="stat", children = [ 
+            dcc.Tab(label="Static-static", value="stat", selected_style={"fontWeight":"bold"}),
+            dcc.Tab(label="Static-dynamic", value="dyn", selected_style={"fontWeight":"bold"})
+            ]),
         
-        ], justify="center", align="center", style={"width":"100%", "backgroundColor":container_bg})
+        sl_analysis := dcc.Graph(figure={}, mathjax=True)
+        
+        ], justify="center", align="center", style={"width":"100%", "backgroundColor":container_bg, "margin-top":"10px"})
 
 ], fluid=True, style={"backgroundColor":container_bg})
-
 
 @app.callback(
     Output(sl_analysis, component_property="figure"),
@@ -237,17 +255,20 @@ app.layout = dbc.Container([
     Input(view_switch, component_property="value"),
     Input(hover_switch, component_property="value"),
     Input(alpha0_range, component_property="value"),
-    Input(alphan1_range, component_property="value")
+    Input(alphan1_range, component_property="value"),
+    Input(graphs_tabs, component_property="value")
 )
-def update_graph(data, view_bool, hover_bool, range_0, range_n1):
+def update_graph(data, view_bool, hover_bool, range_0, range_n1, tab):
 
-    (T, S, G, n, h, c, f, C), (setup, holding, production, total, period_sl, total_sl, waste_prod, waste_dem) = import_data(data)
-
+    alpha = [(a,b) for a in a0 for b in an1 if a <= b]
     b0, bn1 = filter_data(a0, range_0, an1, range_n1)
     reps = list(range(5))
 
-    fig = get_service_level_analysis(b0, bn1, reps, S, G, f, c, setup, holding, production, total, total_sl, waste_prod, waste_dem, view_bool, hover_bool)
-    
+    (T, S, G, n, h, c, f, C), metrics = import_data(data, tab, alpha)
+    (setup, holding, production, total, period_sl, total_sl, waste_prod, waste_dem) = process_data(S, metrics, reps, alpha); del metrics
+
+    fig = plot_service_level_analysis(b0, bn1, reps, S, G, f, c, setup, holding, production, total, total_sl, waste_prod, waste_dem, view_bool, hover_bool, tab)
+
     return fig
 
 if __name__ == "__main__":
