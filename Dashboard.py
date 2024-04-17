@@ -9,7 +9,7 @@ from plotly.express.colors import sample_colorscale
 from plotly.subplots import make_subplots
 from pickle import load, dump
 
-a0 = [0.4, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]
+a0 = [0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]
 an1 = [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]
 
 container_bg = "mediumturquoise"
