@@ -333,17 +333,18 @@ app.layout = dbc.Container([
                 ],label="Individual strategy analysis", value="ind", selected_style={"fontWeight":"bold"}),
 
             dcc.Tab([
-
+                
                 html.Div([
-                    html.Div([
-                        dbc.Row([
-                                dbc.Col([], width=4, style={"margin-top":"20px"}),
-                                dbc.Col([scale_check := dcc.Checklist(options=[{"label":"Scale y axis", "value":"scale"}], value=[])], width=4, style={"margin-top":"20px"}),
-                                dbc.Col([], width=4, style={"margin-top":"20px"})
-                            ], justify="center", align="center", style={"margin-bottom":"25px"}, class_name="d-flex justify-content-center"),
 
-                        dbc.Row([
-                            html.Div(["Select the chart to display"], style={"fontWeight":"bold", "font-size":20, "height":"2rem"}),
+                    html.Div([
+                            dbc.Col([], width=1, style={"margin-top":"20px"}),
+                            dbc.Col([scale_check := dcc.Checklist(options=[{"label":"Scale y axis", "value":"scale"}], value=[])], width=11)
+                            ], style={"height":"3.5rem"}, className="hstack gap-0 w-100 bg-white"),
+
+                    html.Div([
+
+                        html.Div([
+                            html.Div(["Select the chart to display"], style={"fontWeight":"bold", "font-size":20, "height":"2rem"}, className="px-3 py-3"),
                             chart_radio := dcc.RadioItems([
                                 {"label":html.Div(["Total expected cost"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"tot_cost"},
                                 {"label":html.Div(["Setup operations"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"setup"},
@@ -354,16 +355,17 @@ app.layout = dbc.Container([
                                 {"label":html.Div(["Overall fill rate"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"over_fr"},
                                 {"label":html.Div(["Waste level (/prod.)"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"w_prod"},
                                 {"label":html.Div(["Waste level (/dem.)"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px", "margin-bottom":"3px"}), "value":"w_dem"}
-                                ], value="tot_cost", style={"width":"100%"})
-                            ], style={"margin-left":"15px", "margin-right":"15px"}, className="border rounded")
-                        
-                        ], className="vstack gap-0 w-25 bg-white"),
-                        
-                    html.Div([comb_sl := dcc.Graph(figure={}, mathjax=True)], className="w-75")
+                                ], value="tot_cost", style={"width":"100%"}, className="px-3")
+                            ], style={"margin":"15px"}, className="vstack gap-4 border rounded w-25 h-50 bg-white"),
 
-                    ], className="hstack w-100")
+                        html.Div([comb_sl := dcc.Graph(figure={}, mathjax=True)], className="w-75")
+                        
+                        ], style={"height":"700px"}, className="hstack gap-0 w-100 bg-white align-items-baseline"),
+                    
+                    ], className="vstack gap-0 w-100")
                 
                 ], label="Strategies comparison analysis", value="comb", selected_style={"fontWeight":"bold"})
+            
             ], value="ind")
         
         ], justify="center", align="center", style={"width":"100%", "backgroundColor":container_bg, "margin-top":"10px"})
