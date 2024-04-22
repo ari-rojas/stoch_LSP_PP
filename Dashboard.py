@@ -23,7 +23,7 @@ def import_data(experiment, st, alpha):
 
     setup, holding, production, total, period_sl, total_sl, waste_prod, waste_dem = dict(), dict(), dict(), dict(), dict(), dict(), dict(), dict()
     for (a,b) in alpha:
-        file = open(f"./Experiments/Performance metrics/Age_service_level_{a,b}_stat-{st}", "rb")
+        file = open(f"./Experiments/Performance metrics/Age_service_level_{a,b}_0_1_stat-{st}", "rb")
         (setup[a,b], holding[a,b], production[a,b], total[a,b], period_sl[a,b], total_sl[a,b], waste_prod[a,b], waste_dem[a,b]) = load(file); file.close()
 
     return (T, S, G, n, h, c, f, C), (setup, holding, production, total, period_sl, total_sl, waste_prod, waste_dem)
