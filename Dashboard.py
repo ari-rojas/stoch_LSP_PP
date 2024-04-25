@@ -98,7 +98,7 @@ def plot_service_level_analysis(b0, bn1, reps, S, G, f, c, setup, holding, produ
     fig.update_yaxes(showline=True, linewidth=1, linecolor="black", tickformat=",.1%", row=2, col=3, tickfont={"color":"black"})
     fig.update_yaxes(showline=True, linewidth=1, linecolor="black", tickformat=",.1%", row=2, col=4, tickfont={"color":"black"})
 
-    fig.update_layout(plot_bgcolor='white', margin={"l":20, "r":20, "b":40, "t":40}, legend={"x":0.875, "y":0, "xref":"paper", "yref":"paper", "itemwidth":40, "traceorder":"reversed", "valign":"middle", "xanchor":"left", "title":{"text":legend_title, "side":"top center"}, "font":{"size":16}}, height=700)
+    fig.update_layout(plot_bgcolor='white', margin={"l":20, "r":20, "b":40, "t":40}, legend={"x":0.875, "y":0, "xref":"paper", "yref":"paper", "itemwidth":40, "traceorder":"reversed", "valign":"middle", "xanchor":"left", "title":{"text":legend_title, "side":"top center"}, "font":{"size":16, "color":"black"}}, height=700)
     fig.update_layout(shapes=[dict(type="line", xref='paper', yref='paper', x0=-0.1, y0=0.475, x1=1.1, y1=0.475, line=dict(color="black", width=1))], hovermode="x" if hover_bool else "closest")
     fig.update_annotations(font_color="black")
 
@@ -121,7 +121,7 @@ def gen_comb_sl_analysis(alpha, data, b0, bn1, reps, view_bool, hover_bool, plot
     (T, S, G, n, h, c, f, C), metrics = import_data(data, "dyn", alpha)
     (setup2, holding2, production2, total2, period_sl2, total_sl2, waste_prod2, waste_dem2) = process_data(S, metrics, reps, alpha); del metrics
 
-    fig = make_subplots(rows=1, cols=2, horizontal_spacing=0.05, subplot_titles=["Static-static", "Static-dynamic"], shared_yaxes = True if len(share_y) else False)
+    fig = make_subplots(rows=1, cols=2, horizontal_spacing=0.03, subplot_titles=["Static-static", "Static-dynamic"], shared_yaxes = True if len(share_y) else False)
 
     if view_bool:
         cols = sample_colorscale("plasma",[(bn1[-1]-b)/(bn1[-1]-bn1[0]) for b in bn1])
@@ -180,8 +180,9 @@ def gen_comb_sl_analysis(alpha, data, b0, bn1, reps, view_bool, hover_bool, plot
         elif plot == "over_fr": fig.update_yaxes(showline=True, linewidth=1, linecolor="black", tickvals=bn1, ticks=total_prod_sl["ticks"], ticktext=total_prod_sl["ticktext"], row=1, col=i, tickfont={"color":"black"})
         elif plot in ["w_prod","w_dem"]: fig.update_yaxes(showline=True, linewidth=1, linecolor="black", tickformat=",.1%", row=1, col=i, tickfont={"color":"black"})
 
-    fig.update_layout(plot_bgcolor='white', margin={"l":20, "r":20, "b":40, "t":60}, legend={"itemwidth":40, "traceorder":"reversed", "valign":"middle", "xanchor":"left", "title":{"text":legend_title, "side":"top center"}, "font":{"size":16}}, height=400)
+    fig.update_layout(plot_bgcolor='white', margin={"l":20, "r":20, "b":40, "t":60}, legend={"itemwidth":40, "traceorder":"reversed", "valign":"middle", "xanchor":"left", "title":{"text":legend_title, "side":"top center"}, "font":{"size":16, "color":"black"}}, height=400)
     fig.update_layout(hovermode="x" if hover_bool else "closest")
+    fig.update_layout(yaxis_showticklabels=True, yaxis2_showticklabels=True)
     fig.update_annotations(font_color="black")
     
     return fig
