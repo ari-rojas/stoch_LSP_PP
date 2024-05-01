@@ -11,6 +11,7 @@ from pickle import load, dump
 
 a0 = [0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]
 an1 = [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]
+alpha = [(a,b) for a in a0 for b in an1 if a <= b]
 
 container_bg = "mediumturquoise"
 header_bg = "#2DB5AF"; header_text_color="black"
@@ -121,22 +122,22 @@ def gen_comb_sl_analysis(alpha, data, b0, bn1, reps, view_bool, hover_bool, plot
     (T, S, G, n, h, c, f, C), metrics = import_data(data, "dyn", alpha)
     (setup2, holding2, production2, total2, period_sl2, total_sl2, waste_prod2, waste_dem2) = process_data(S, metrics, reps, alpha); del metrics
 
-    fig = make_subplots(rows=1, cols=2, horizontal_spacing=0.03, subplot_titles=["Static-static", "Static-dynamic"], shared_yaxes = True if len(share_y) else False)
+    fig = make_subplots(rows=1, cols=2, horizontal_spacing=0.1, subplot_titles=["Static-static", "Static-dynamic"], shared_yaxes = True if len(share_y) else False)
 
     if view_bool:
         cols = sample_colorscale("plasma",[(bn1[-1]-b)/(bn1[-1]-bn1[0]) for b in bn1])
         y_axis_container = bn1; x_axis_container = b0
         hover_text = "α(0)"; x_ax_title = r"$\alpha_0$"; legend_title = r"$\alpha_{n-1}$"
 
-        fresh_prod_sl = {"ticks":"outside", "ticktext":[f"{a:.0%}" if a*100 % 10 == 0 else "" for a in b0]}
-        total_prod_sl = {"ticks":"", "ticktext":[f"{b:.0%}" for b in bn1]}
+        fresh_prod_sl = {"ticks":"outside", "ticktext":[f"{a:.1%}" if a*100 % 10 == 0 and a < 1 else f"{a:.0%}" if a == 1 else "" for a in b0+[1]]}
+        total_prod_sl = {"ticks":"", "ticktext":[f"{b:.1%}" if b < 1 else f"{b:.0%}" for b in bn1+[1]]}
     else:
         cols = sample_colorscale("turbo",[(a-b0[0])/(b0[-1]-b0[0]) for a in b0])
         y_axis_container = b0; x_axis_container = bn1
         hover_text = "α(n-1)"; x_ax_title = r"$\alpha_{n-1}$"; legend_title = r"$\alpha_0$"
 
-        fresh_prod_sl = {"ticks":"", "ticktext":[f"{a:.0%}" for a in b0]}
-        total_prod_sl = {"ticks":"outside", "ticktext":[f"{b:.0%}" if b*100 % 10 == 0 else "" for b in bn1]}
+        fresh_prod_sl = {"ticks":"", "ticktext":[f"{a:.1%}" if a < 1 else f"{a:.0%}" for a in b0+[1]]}
+        total_prod_sl = {"ticks":"outside", "ticktext":[f"{b:.1%}" if b*100 % 10 == 0 and b < 1 else (f"{b:.0%}" if b == 1 else "") for b in bn1+[1]]}
     
     ix=0
     for b in y_axis_container:
@@ -173,12 +174,31 @@ def gen_comb_sl_analysis(alpha, data, b0, bn1, reps, view_bool, hover_bool, plot
         ix += 1
 
     for i in range(1,3):
-        fig.update_xaxes(title={"text":x_ax_title, "font":{"color":"black"}}, ticks="outside", tickmode="array", tickvals=x_axis_container, ticktext=[f"{a:.0%}" if a*100 % 10 == 0 else "" for a in x_axis_container], showline=True, linewidth=1, linecolor="black", row=1, col=i, tickfont={"color":"black"})
+        fig.update_xaxes(range=[x_axis_container[0]-0.025,1.025], title={"text":x_ax_title, "font":{"color":"black"}}, ticks="outside", tickmode="array", tickvals=x_axis_container+[1], ticktext=[f"{a:.0%}" if a*100 % 10 == 0 else "" for a in x_axis_container+[1]], showline=True, linewidth=1, linecolor="black", row=1, col=i, tickfont={"color":"black"})
         fig.update_yaxes(showline=True, linewidth=1, linecolor="black", row=1, col=i, tickfont={"color":"black"})
 
-        if plot == "fresh_fr": fig.update_yaxes(showline=True, linewidth=1, linecolor="black", tickvals=b0, ticks=fresh_prod_sl["ticks"], ticktext=fresh_prod_sl["ticktext"], row=1, col=i, tickfont={"color":"black"})
-        elif plot == "over_fr": fig.update_yaxes(showline=True, linewidth=1, linecolor="black", tickvals=bn1, ticks=total_prod_sl["ticks"], ticktext=total_prod_sl["ticktext"], row=1, col=i, tickfont={"color":"black"})
+        if plot == "fresh_fr": fig.update_yaxes(range=[b0[0]-0.025, 1.025], showline=True, linewidth=1, linecolor="black", tickvals=b0+[1], ticks=fresh_prod_sl["ticks"], ticktext=fresh_prod_sl["ticktext"], row=1, col=i, tickfont={"color":"black"})
+        elif plot == "over_fr": fig.update_yaxes(range=[bn1[0]-0.025, 1.025], showline=True, linewidth=1, linecolor="black", tickvals=bn1+[1], ticks=total_prod_sl["ticks"], ticktext=total_prod_sl["ticktext"], row=1, col=i, tickfont={"color":"black"})
         elif plot in ["w_prod","w_dem"]: fig.update_yaxes(showline=True, linewidth=1, linecolor="black", tickformat=",.1%", row=1, col=i, tickfont={"color":"black"})
+
+    if view_bool and plot == "over_fr":
+        for b in bn1+[1]:
+            fig.add_hline(y=b, line_dash="dot", line_width=1, line_color="black", row=1, col=1, layer="below")
+            fig.add_hline(y=b, line_dash="dot", line_width=1, line_color="black", row=1, col=2, layer="below")
+    elif plot == "over_fr":
+        for col in [1,2]:
+            for b in bn1+[1]:
+                fig.add_shape(type="line", x0 = bn1[0]-0.025, x1=b, y0=b, y1=b, xref="x", line={"color":"black", "width":1, "dash":"dot"}, row=1, col=col, layer="below")
+                fig.add_shape(type="line", y0 = bn1[0]-0.025, y1=b, x0=b, x1=b, yref="y", line={"color":"black", "width":1, "dash":"dot"}, row=1, col=col, layer="below")
+    elif view_bool and plot == "fresh_fr":
+        for col in [1,2]:
+            for b in b0+[1]:
+                fig.add_shape(type="line", x0 = b0[0]-0.025, x1=b, y0=b, y1=b, xref="x", line={"color":"black", "width":1, "dash":"dot"}, row=1, col=col, layer="below")
+                fig.add_shape(type="line", y0 = b0[0]-0.025, y1=b, x0=b, x1=b, yref="y", line={"color":"black", "width":1, "dash":"dot"}, row=1, col=col, layer="below")
+    elif plot == "fresh_fr":
+        for b in b0+[1]:
+            fig.add_hline(y=b, line_dash="dot", line_width=1, line_color="black", row=1, col=1, layer="below")
+            fig.add_hline(y=b, line_dash="dot", line_width=1, line_color="black", row=1, col=2, layer="below")
 
     fig.update_layout(plot_bgcolor='white', margin={"l":20, "r":20, "b":40, "t":60}, legend={"itemwidth":40, "traceorder":"reversed", "valign":"middle", "xanchor":"left", "title":{"text":legend_title, "side":"top center"}, "font":{"size":16, "color":"black"}}, height=400)
     fig.update_layout(hovermode="x" if hover_bool else "closest")
@@ -339,7 +359,7 @@ app.layout = dbc.Container([
 
                     html.Div([
                             dbc.Col([], width=1, style={"margin-top":"20px"}),
-                            dbc.Col([scale_check := dcc.Checklist(options=[{"label":"Scale y axis", "value":"scale"}], value=[])], width=11)
+                            dbc.Col([scale_check := dcc.Checklist(options=[{"label":"Scale y axis", "value":"scale"}], value=["scale"])], width=11)
                             ], style={"height":"3.5rem"}, className="hstack gap-0 w-100 bg-white"),
 
                     html.Div([
@@ -389,7 +409,7 @@ app.layout = dbc.Container([
 )
 def update_layout(data, view_bool, hover_bool, range_0, range_n1, m, plot_radio, scale_y):
 
-    alpha = [(a,b) for a in a0 for b in an1 if a <= b]
+    
     b0, bn1 = filter_data(a0, range_0, an1, range_n1); reps = list(range(5))
 
     if m % 2 == 0: st = "stat"; but = "Switch to stat-dyn"; tit = "Static-static strategy Service Level analysis"
