@@ -49,14 +49,13 @@ def filter_data(a0, vals0, an1, valsn1):
 
     return b0, bn1
 
-def plot_service_level_analysis(b0, bn1, reps, S, G, f, c, setup, holding, production, total, total_sl, waste_prod, waste_dem, view_bool, hover_bool, st):
+def plot_service_level_analysis(b0, bn1, reps, T, S, G, f, c, C, setup, holding, production, total, total_sl, waste_prod, waste_dem, view_bool, hover_bool, st):
 
-    if st == "stat": s1 = "Average lot size"; s2 = "Production cost"
-    else: s1 = "Expected average lot size"; s2 = "Expected production cost"
+    if st == "stat": s1 = "Average capacity utilization"; s2 = "Production cost"
+    else: s1 = "Exp. average capacity utilization"; s2 = "Expected production cost"
 
-    fig = make_subplots(rows=2, cols=5, horizontal_spacing=0.05, vertical_spacing=0.15, subplot_titles=["Total expected cost","Setup operations",s1,s2,"Expected holding cost",
+    fig = make_subplots(rows=2, cols=5, horizontal_spacing=0.05, vertical_spacing=0.15, subplot_titles=["Total expected cost","Proportion of production days",s1,s2,"Expected holding cost",
                                                     "Achieved fresh produce fill rate","Achieved overall fill rate","Waste level (/prod.)","Waste level (/dem.)",None])
-
     
     if view_bool:
         cols = sample_colorscale("plasma",[(bn1[-1]-b)/(bn1[-1]-bn1[0]) for b in bn1])
@@ -79,8 +78,8 @@ def plot_service_level_analysis(b0, bn1, reps, S, G, f, c, setup, holding, produ
         else: xpoints = [a for a in x_axis_container if a >= b]; comb = {a:(b,a) for a in xpoints}
 
         fig.add_trace(go.Scatter(x=xpoints, y=[np.average([total[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Tot. Exp. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=1)
-        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([setup[comb[a]][rep]/f for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Setups = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=False), row=1, col=2)
-        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([production[comb[a]][rep]*f/(setup[comb[a]][rep]*c) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Avg. Lot Size = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=3)
+        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([setup[comb[a]][rep]/(f*len(T)) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Setups = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=False), row=1, col=2)
+        fig.add_trace(go.Scatter(x=xpoints, y=[np.average([production[comb[a]][rep]*f/(C*setup[comb[a]][rep]*c) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Avg. Lot Size = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=3)
         fig.add_trace(go.Scatter(x=xpoints, y=[np.average([production[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Prod. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=4)
         fig.add_trace(go.Scatter(x=xpoints, y=[np.average([holding[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Exp. Hold. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=5)
         fig.add_trace(go.Scatter(x=xpoints, y=[np.average([total_sl[comb[a]][rep][0] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Fresh produce fill rate = %{y:,.2%}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=2, col=1)
@@ -92,6 +91,9 @@ def plot_service_level_analysis(b0, bn1, reps, S, G, f, c, setup, holding, produ
     for i in range(1,6):
         fig.update_xaxes(title={"text":x_ax_title, "font":{"color":"black"}}, ticks="outside", tickmode="array", tickvals=x_axis_container, ticktext=[f"{a:.0%}" if a*100 % 10 == 0 else "" for a in x_axis_container], showline=True, linewidth=1, linecolor="black", row=1, col=i, tickfont={"color":"black"})
         fig.update_yaxes(showline=True, linewidth=1, linecolor="black", row=1, col=i, tickfont={"color":"black"})
+    fig.update_yaxes(tickformat=".1%", row=1, col=2)
+    fig.update_yaxes(tickformat=".1%", row=1, col=3)
+
     for i in range(1,5):
         fig.update_xaxes(title={"text":x_ax_title, "font":{"color":"black"}}, ticks="outside", tickmode="array", tickvals=x_axis_container, ticktext=[f"{a:.0%}" if a*100 % 10 == 0 else "" for a in x_axis_container], showline=True, linewidth=1, linecolor="black", row=2, col=i, tickfont={"color":"black"})
     fig.update_yaxes(showline=True, linewidth=1, linecolor="black", tickvals=b0, ticks=fresh_prod_sl["ticks"], ticktext=fresh_prod_sl["ticktext"], row=2, col=1, tickfont={"color":"black"})
@@ -110,7 +112,7 @@ def gen_ind_sl_analysis(alpha, data, b0, bn1, reps, st, view_bool, hover_bool):
     (T, S, G, n, h, c, f, C), metrics = import_data(data, st, alpha)
     (setup, holding, production, total, period_sl, total_sl, waste_prod, waste_dem) = process_data(S, metrics, reps, alpha); del metrics
 
-    fig = plot_service_level_analysis(b0, bn1, reps, S, G, f, c, setup, holding, production, total, total_sl, waste_prod, waste_dem, view_bool, hover_bool, st)
+    fig = plot_service_level_analysis(b0, bn1, reps, T, S, G, f, c, C, setup, holding, production, total, total_sl, waste_prod, waste_dem, view_bool, hover_bool, st)
 
     return fig
 
@@ -148,11 +150,11 @@ def gen_comb_sl_analysis(alpha, data, b0, bn1, reps, view_bool, hover_bool, plot
             fig.add_trace(go.Scatter(x=xpoints, y=[np.average([total1[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Tot. Exp. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=1)
             fig.add_trace(go.Scatter(x=xpoints, y=[np.average([total2[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Tot. Exp. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=True), row=1, col=2)
         elif plot == "setup":
-            fig.add_trace(go.Scatter(x=xpoints, y=[np.average([setup1[comb[a]][rep]/f for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Setups = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=False), row=1, col=1)
-            fig.add_trace(go.Scatter(x=xpoints, y=[np.average([setup2[comb[a]][rep]/f for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Setups = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=True), row=1, col=2)
+            fig.add_trace(go.Scatter(x=xpoints, y=[np.average([setup1[comb[a]][rep]/(f*len(T)) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Setups = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=False), row=1, col=1)
+            fig.add_trace(go.Scatter(x=xpoints, y=[np.average([setup2[comb[a]][rep]/(f*len(T)) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Setups = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}" , legendgroup=f"{b:.1%}", showlegend=True), row=1, col=2)
         elif plot == "lot_size":    
-            fig.add_trace(go.Scatter(x=xpoints, y=[np.average([production1[comb[a]][rep]*f/(setup1[comb[a]][rep]*c) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Avg. Lot Size = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=1)
-            fig.add_trace(go.Scatter(x=xpoints, y=[np.average([production2[comb[a]][rep]*f/(setup2[comb[a]][rep]*c) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Avg. Lot Size = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=True), row=1, col=2)
+            fig.add_trace(go.Scatter(x=xpoints, y=[np.average([production1[comb[a]][rep]*f/(C*setup1[comb[a]][rep]*c) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Avg. Lot Size = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=1)
+            fig.add_trace(go.Scatter(x=xpoints, y=[np.average([production2[comb[a]][rep]*f/(C*setup2[comb[a]][rep]*c) for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Avg. Lot Size = %{y:,.1f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=True), row=1, col=2)
         elif plot == "prod_cost":    
             fig.add_trace(go.Scatter(x=xpoints, y=[np.average([production1[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Prod. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=False), row=1, col=1)
             fig.add_trace(go.Scatter(x=xpoints, y=[np.average([production2[comb[a]][rep] for rep in reps]) for a in xpoints], customdata=xpoints, mode="lines+markers", hovertemplate=hover_text+": %{customdata:.1%} <br>Prod. Cost = %{y:,.0f}", marker={"color":cols[ix]}, name=f"{b:.1%}", legendgroup=f"{b:.1%}", showlegend=True), row=1, col=2)
@@ -177,7 +179,9 @@ def gen_comb_sl_analysis(alpha, data, b0, bn1, reps, view_bool, hover_bool, plot
         fig.update_xaxes(range=[x_axis_container[0]-0.025,1.025], title={"text":x_ax_title, "font":{"color":"black"}}, ticks="outside", tickmode="array", tickvals=x_axis_container+[1], ticktext=[f"{a:.0%}" if a*100 % 10 == 0 else "" for a in x_axis_container+[1]], showline=True, linewidth=1, linecolor="black", row=1, col=i, tickfont={"color":"black"})
         fig.update_yaxes(showline=True, linewidth=1, linecolor="black", row=1, col=i, tickfont={"color":"black"})
 
-        if plot == "fresh_fr": fig.update_yaxes(range=[b0[0]-0.025, 1.025], showline=True, linewidth=1, linecolor="black", tickvals=b0+[1], ticks=fresh_prod_sl["ticks"], ticktext=fresh_prod_sl["ticktext"], row=1, col=i, tickfont={"color":"black"})
+        if plot == "setup": fig.update_yaxes(tickformat=".1%")
+        elif plot == "lot_size": fig.update_yaxes(tickformat=".1%")
+        elif plot == "fresh_fr": fig.update_yaxes(range=[b0[0]-0.025, 1.025], showline=True, linewidth=1, linecolor="black", tickvals=b0+[1], ticks=fresh_prod_sl["ticks"], ticktext=fresh_prod_sl["ticktext"], row=1, col=i, tickfont={"color":"black"})
         elif plot == "over_fr": fig.update_yaxes(range=[bn1[0]-0.025, 1.025], showline=True, linewidth=1, linecolor="black", tickvals=bn1+[1], ticks=total_prod_sl["ticks"], ticktext=total_prod_sl["ticktext"], row=1, col=i, tickfont={"color":"black"})
         elif plot in ["w_prod","w_dem"]: fig.update_yaxes(showline=True, linewidth=1, linecolor="black", tickformat=",.1%", row=1, col=i, tickfont={"color":"black"})
 
@@ -368,8 +372,8 @@ app.layout = dbc.Container([
                             html.Div(["Select the chart to display"], style={"fontWeight":"bold", "font-size":20, "height":"2rem"}, className="px-3 py-3"),
                             chart_radio := dcc.RadioItems([
                                 {"label":html.Div(["Total expected cost"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"tot_cost"},
-                                {"label":html.Div(["Setup operations"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"setup"},
-                                {"label":html.Div(["Average lot size"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"lot_size"},
+                                {"label":html.Div(["Proportion of production days"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"setup"},
+                                {"label":html.Div(["Average capacity utilization"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"lot_size"},
                                 {"label":html.Div(["Production cost"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"prod_cost"},
                                 {"label":html.Div(["Holding cost"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"hold_cost"},
                                 {"label":html.Div(["Fresh produce fill rate"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"fresh_fr"},
