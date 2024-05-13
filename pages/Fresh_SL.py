@@ -8,6 +8,7 @@ from dash_iconify import DashIconify
 a0 = [0.4, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]
 an1 = [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]
 alpha = [(a,b) for a in a0 for b in an1 if a <= b]
+page = 1; reps = list(range(5))
 
 data = "T30_S150_n4"
 
@@ -187,14 +188,12 @@ layout = html.Div([
 )
 def update_layout(view_bool, hover_bool, range_0, range_n1, m, plot_radio, scale_y, np_mode, np_last, xaxis_bool):
     
-    b0, bn1 = stoch_LSP_PP.data_mgmt.filter_data_fresh(a0, range_0, an1, range_n1); reps = list(range(5))
+    b0, bn1 = stoch_LSP_PP.data_mgmt.filter_data(a0, range_0, an1, range_n1); 
+    st, but, tit = stoch_LSP_PP.charts.get_tabs_titles(m)
 
-    if m % 2 == 0: st = "stat"; but = "Switch to stat-dyn"; tit = "Static-static strategy Service Level analysis"
-    else: st = "dyn"; but= "Switch to stat-stat"; tit = "Static-dynamic strategy Service Level analysis"
-
-    specifics = stoch_LSP_PP.charts.generate_plot_specifics(view_bool, np_mode, np_last, xaxis_bool, b0, bn1)
-    fig1 = stoch_LSP_PP.charts.gen_ind_sl_analysis(data, 1, alpha, b0, bn1, reps, st, view_bool, hover_bool, specifics, xaxis_bool)
-    fig2 = stoch_LSP_PP.charts.gen_comb_sl_analysis(data, 1, alpha, b0, bn1, reps, view_bool, hover_bool, plot_radio, scale_y)
+    specifics = stoch_LSP_PP.charts.generate_plot_specifics(page, view_bool, np_mode, np_last, xaxis_bool, b0, bn1)
+    fig1 = stoch_LSP_PP.charts.gen_ind_sl_analysis(data, page, alpha, b0, bn1, reps, st, view_bool, hover_bool, specifics, xaxis_bool)
+    fig2 = stoch_LSP_PP.charts.gen_comb_sl_analysis(data, page, alpha, b0, bn1, reps, view_bool, hover_bool, plot_radio, scale_y, specifics, xaxis_bool)
     
     return fig1, fig2, but, tit
 
