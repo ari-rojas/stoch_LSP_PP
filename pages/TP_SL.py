@@ -2,13 +2,13 @@ import dash_bootstrap_components as dbc
 import dash_daq as daq
 import dash
 import stoch_LSP_PP
-from dash import Dash, dcc, html, Output, Input, State, callback, no_update
+from dash import Dash, dcc, html, Output, Input, State, callback, no_update, ctx
 from dash_iconify import DashIconify
 
 betas = [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]
-an1 = [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.975]
+an1 = [0.8, 0.85, 0.9, 0.95, 0.975]
 tot_fr = [(beta,b) for beta in betas for b in an1 if beta <= b]
-page = 2; reps = list(range(5))
+page = 2; reps = list(range(5)); sl_type = "lit"
 
 data = "T30_S150_n4"
 
@@ -30,6 +30,7 @@ layout = html.Div([
                 html.Div([
                     html.Div([html.Span(className="tab"),
                             strategy := dbc.Button("Switch to stat-dyn" , n_clicks=0, color="primary"),
+                            sl_button := dbc.Button("Switch to lit-sl" , n_clicks=0, color="primary"),
                             ind_tab_title := html.H4("Static-static strategy Service Level analysis")
                             ], style={"backgroundColor":"white", "height":"3.5rem"}, className="hstack gap-5 d-flex align-items-center"),
                     
@@ -54,15 +55,18 @@ layout = html.Div([
                             html.Div(["Select the chart to display"], style={"fontWeight":"bold", "font-size":20, "height":"2rem"}, className="px-3 py-3"),
                             chart_radio := dcc.RadioItems([
                                 {"label":html.Div(["Total expected cost"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"tot_cost"},
-                                {"label":html.Div(["Proportion of production days"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"setup"},
-                                {"label":html.Div(["Average capacity utilization"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"lot_size"},
                                 {"label":html.Div(["Production cost"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"prod_cost"},
                                 {"label":html.Div(["Holding cost"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"hold_cost"},
                                 {"label":html.Div(["Fresh produce fill rate"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"fresh_fr"},
                                 {"label":html.Div(["Overall fill rate"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"over_fr"},
+                                {"label":html.Div(["Proportion of production days"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"setup"},
+                                {"label":html.Div(["Average capacity utilization"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"lot_size"},
                                 {"label":html.Div(["Waste level (/prod.)"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px"}), "value":"w_prod"},
                                 {"label":html.Div(["Waste level (/dem.)"], style = {"color":"black", "display":"inline-block", "margin-top":"3px", "margin-left":"10px", "margin-bottom":"3px"}), "value":"w_dem"}
-                                ], value="tot_cost", style={"width":"100%"}, className="px-3")
+                                ], value="tot_cost", style={"width":"100%"}, className="px-3"),
+
+                            html.Div(download_btn := dbc.Button("Download plot", id="download_btn", style={"backgroundColor":header_bg}, className="border-0"), style={"textAlign":"center", "margin":"auto"}, className="w-50")
+                            
                             ], style={"margin":"15px"}, className="vstack gap-4 border rounded w-25 h-50 bg-white"),
 
                         html.Div([comb_sl := dcc.Graph(figure={}, mathjax=True)], className="w-75")
@@ -138,6 +142,23 @@ layout = html.Div([
                 ], className="vstack gap-0")], style={"width":"200px", "borderColor":border_color}),
 
                 dbc.Card([html.Div([
+                    relative_text := html.Div("Display values as", style={"textAlign":"center", "color":"black", "height":"1.5rem"}, className="my-1"),
+
+                    relative_line := html.Hr(style={"color":border_color, "margin-top":"1px", "margin-bottom":"1px"}),
+
+                    html.Div([
+                        relative_mode := dcc.RadioItems(options=[
+                            {"label":html.Div("Absolute", style={"display":"inline", "padding-left":"3px", "padding-right":"10px", "color":"black"}), "value":"abs"},
+                            {"label":html.Div("Relative to", style={"display":"inline", "padding-left":"3px", "padding-right":"10px", "color":"black"}), "value":"rel"}
+                        ], value="abs", style={"display":"flex"}),
+
+                        relative_last := dcc.Dropdown(options=[{"label":html.Div(f"{a:.0%}", style={"color":"black"}), "value":a} for a in betas if a <= 0.7], value=0.4, style={"color":"black", "width":"90px"}, disabled=True)
+
+                    ], className="hstack my-1 px-3")
+                
+                ], className="vstack gap-0")], style={"width":"315px", "borderColor":border_color}),
+
+                dbc.Card([html.Div([
                     xaxis_text := html.Div("Independent variable", style={"textAlign":"center", "color":"black", "height":"1.5rem"}, className="my-1"),
 
                     xaxis_line := html.Hr(style={"color":border_color, "margin-top":"1px", "margin-bottom":"1px"}),
@@ -174,28 +195,40 @@ layout = html.Div([
     Output(sl_analysis, component_property="figure"),
     Output(comb_sl, component_property="figure"),
     Output(strategy, component_property="children"),
+    Output(sl_button, component_property="children"),
     Output(ind_tab_title, component_property="children"),
     Input(view_switch, component_property="value"),
     Input(hover_switch, component_property="value"),
     Input(alpha0_range, component_property="value"),
     Input(alphan1_range, component_property="value"),
     Input(strategy, component_property="n_clicks"),
+    Input(sl_button, component_property="n_clicks"),
     Input(chart_radio, component_property="value"),
     Input(scale_check, component_property="value"),
     Input(npoints_mode, component_property="value"),
     Input(npoints_last, component_property="value"),
-    Input(xaxis_switch, component_property="value")
+    Input(xaxis_switch, component_property="value"),
+    Input(download_btn, component_property="n_clicks"),
+    Input(relative_mode, component_property="value"),
+    Input(relative_last, component_property="value")
 )
-def update_layout(view_bool, hover_bool, range_beta, range_n1, m, plot_radio, scale_y, np_mode, np_last, xaxis_bool):
+def update_layout(view_bool, hover_bool, range_beta, range_n1, m, sl_n, plot_radio, scale_y, np_mode, np_last, xaxis_bool, n_download, rel_mode, rel_last):
     
     filt_beta, bn1 = stoch_LSP_PP.data_mgmt.filter_data(betas, range_beta, an1, range_n1)
     st, but, tit = stoch_LSP_PP.charts.get_tabs_titles(m)
+    sl_but, sl_type = ("Switch to lit-sl","base") if sl_n % 2 == 0 else ("Switch to scn-sl","lit")
+    download = True if ctx.triggered_id == "download_btn" else False
     
     specifics = stoch_LSP_PP.charts.generate_plot_specifics(page, view_bool, np_mode, np_last, xaxis_bool, filt_beta, bn1)
-    fig1 = stoch_LSP_PP.charts.gen_ind_sl_analysis(data, page, tot_fr, filt_beta, bn1, reps, st, view_bool, hover_bool, specifics, xaxis_bool)
-    fig2 = stoch_LSP_PP.charts.gen_comb_sl_analysis(data, page, tot_fr, filt_beta, bn1, reps, view_bool, hover_bool, plot_radio, scale_y, specifics, xaxis_bool)
+    if rel_mode == "abs":
+        fig1 = stoch_LSP_PP.charts.gen_ind_sl_analysis(data, page, tot_fr, filt_beta, bn1, reps, st, sl_type, view_bool, hover_bool, specifics, xaxis_bool)
+        fig2 = stoch_LSP_PP.charts.gen_comb_sl_analysis(data, page, tot_fr, filt_beta, bn1, reps, sl_type, view_bool, hover_bool, plot_radio, scale_y, specifics, xaxis_bool, download)
+    else:
+        fig1 = stoch_LSP_PP.charts.gen_ind_sl_analysis_relative(data, page, tot_fr, filt_beta, bn1, reps, st, sl_type, view_bool, hover_bool, specifics, xaxis_bool, rel_last)
+        fig2 = stoch_LSP_PP.charts.gen_comb_sl_analysis_relative(data, page, tot_fr, filt_beta, bn1, reps, sl_type, view_bool, hover_bool, plot_radio, scale_y, specifics, xaxis_bool, rel_last, download)
     
-    return fig1, fig2, but, tit
+    return fig1, fig2, but, sl_but, tit
+
 
 @callback(
     Output(side_settings, component_property="is_open"),
@@ -219,6 +252,11 @@ def toggle_offcanvas_settings(n1, is_open):
     Output(xaxis_switch, component_property="value"),
     Output(x_axis_a0, component_property="style"),
     Output(x_axis_an1a0, component_property="style"),
+    Output(relative_text, component_property="style"),
+    Output(relative_line, component_property="style"),
+    Output(relative_mode, component_property="value"),
+    Output(relative_mode, component_property="options"),
+    Output(relative_last, component_property="options"),
     Input(view_switch, component_property="value")
 )
 def alpha0_disabling(view_bool):
@@ -234,6 +272,11 @@ def alpha0_disabling(view_bool):
         xaxis_disabled = False; xaxis_value = no_update
         xaxis_a0_style = {"textAlign":"right", "color":"black", "height":"1.5rem", "width":"48px"}
         xaxis_an1a0_style = {"textAlign":"left", "color":"black", "height":"1.5rem", "width":"103px"}
+        rel_text_style = {"textAlign":"center", "color":"black", "height":"1.5rem"}; rel_line_style = {"color":border_color, "margin-top":"1px", "margin-bottom":"1px"}
+        rel_value = no_update
+        rel_options = [{"label":html.Div("Absolute", style={"display":"inline", "padding-left":"3px", "padding-right":"10px", "color":"black"}), "value":"abs"},
+                    {"label":html.Div("Relative to", style={"display":"inline", "padding-left":"3px", "padding-right":"10px", "color":"black"}), "value":"rel", "disabled":False}]
+        rel_drop_options = [{"label":html.Div(f"{a:.0%}", style={"color":"black"}), "value":a} for a in betas if a <= 0.7]
 
     else:
         text_style = {"textAlign":"center", "color":"silver", "height":"1.5rem"}
@@ -246,8 +289,13 @@ def alpha0_disabling(view_bool):
         xaxis_disabled = True; xaxis_value = False
         xaxis_a0_style = {"textAlign":"right", "color":"silver", "height":"1.5rem", "width":"48px"}
         xaxis_an1a0_style = {"textAlign":"left", "color":"silver", "height":"1.5rem", "width":"103px"}
+        rel_text_style = {"textAlign":"center", "color":"silver", "height":"1.5rem"}; rel_line_style = {"color":"silver", "margin-top":"1px", "margin-bottom":"1px"}
+        rel_value = "abs"
+        rel_options = [{"label":html.Div("Absolute", style={"display":"inline", "padding-left":"3px", "padding-right":"10px", "color":"silver"}), "value":"abs"},
+                        {"label":html.Div("Relative to", style={"display":"inline", "padding-left":"3px", "padding-right":"10px", "color":"silver"}), "value":"rel", "disabled":True}]
+        rel_drop_options = [{"label":html.Div(f"{a:.0%}", style={"color":"silver"}), "value":a} for a in betas if a <= 0.7]
 
-    return text_style, line_style, mode, options, last_style, xaxis_text_style, xaxis_line_style, xaxis_disabled, xaxis_value, xaxis_a0_style, xaxis_an1a0_style
+    return text_style, line_style, mode, options, last_style, xaxis_text_style, xaxis_line_style, xaxis_disabled, xaxis_value, xaxis_a0_style, xaxis_an1a0_style, rel_text_style, rel_line_style, rel_value, rel_options, rel_drop_options
 
 @callback(
     Output(npoints_last, component_property="disabled"),
@@ -256,6 +304,15 @@ def alpha0_disabling(view_bool):
 def npoints_input_disabling(mode):
 
     if mode == "a": return True
+    else: return False
+
+@callback(
+    Output(relative_last, component_property="disabled"),
+    Input(relative_mode, component_property="value")
+)
+def relative_input_disabling(mode):
+
+    if mode == "abs": return True
     else: return False
 
 @callback(
